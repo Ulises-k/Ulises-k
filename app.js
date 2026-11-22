@@ -559,27 +559,18 @@
     return ["Cotizacion", prod, limpio(q.cliente), q.fecha].filter(Boolean).join("_");
   }
 
-  async function descargarPdf() {
-    if (typeof window.html2pdf !== "function") {
-      toast("Sin conexión para PDF directo: usa Imprimir → Guardar como PDF");
-      imprimir();
-      return;
-    }
-    const btn = $("btnPdf");
-    btn.disabled = true;
-    btn.textContent = "Generando…";
+  async function crearPdfBlob() {
     const doc = $("doc");
     const scaleBox = $("previewScale");
     const prevZoom = scaleBox.style.zoom;
+    const sx = window.scrollX, sy = window.scrollY;
     scaleBox.style.zoom = 1;
     doc.classList.add("exporting");
-    const sx = window.scrollX, sy = window.scrollY;
     window.scrollTo(0, 0);
     try {
-      const blob = await window.html2pdf()
+      return await window.html2pdf()
         .set({
           margin: [0.5, 0.55, 0.5, 0.55],
-          filename: nombreArchivo() + ".pdf",
           image: { type: "jpeg", quality: 0.95 },
           html2canvas: { scale: 2, useCORS: true, backgroundColor: "#ffffff", scrollX: 0, scrollY: 0 },
           jsPDF: { unit: "in", format: "letter", orientation: "portrait" },
@@ -587,18 +578,44 @@
         })
         .from(doc)
         .outputPdf("blob");
+    } finally {
       doc.classList.remove("exporting");
       scaleBox.style.zoom = prevZoom;
       window.scrollTo(sx, sy);
+    }
+  }
+
+  // Enviar por WhatsApp, correo, etc. (menú compartir del teléfono)
+  async function enviarPdf() {
+    const btn = $("btnEnviar");
+    btn.disabled = true; btn.textContent = "Preparando…";
+    try {
+      const blob = await crearPdfBlob();
+      const file = new File([blob], nombreArchivo() + ".pdf", { type: "application/pdf" });
+      await navigator.share({ files: [file], title: "Cotización " + (q.cliente || "") });
+    } catch (e) {
+      if (!e || e.name !== "AbortError") toast("No se pudo compartir. Usa Descargar PDF.");
+    } finally {
+      btn.disabled = false; btn.textContent = "Enviar PDF";
+    }
+  }
+
+  async function descargarPdf() {
+    if (typeof window.html2pdf !== "function") {
+      toast("No se pudo cargar el generador de PDF: usa Imprimir → Guardar como PDF");
+      return;
+    }
+    const btn = $("btnPdf");
+    btn.disabled = true;
+    btn.textContent = "Generando…";
+    try {
+      const blob = await crearPdfBlob();
       const ok = await guardarArchivo(blob, nombreArchivo() + ".pdf");
       if (ok) toast("PDF descargado");
     } catch (e) {
       console.error(e);
       toast("No se pudo generar. Usa Imprimir → Guardar como PDF");
     } finally {
-      doc.classList.remove("exporting");
-      scaleBox.style.zoom = prevZoom;
-      window.scrollTo(sx, sy);
       btn.disabled = false;
       btn.textContent = "Descargar PDF";
     }
@@ -686,6 +703,39 @@
     $("btnPdf").addEventListener("click", descargarPdf);
     $("btnImprimir").addEventListener("click", imprimir);
     if (enMarco) $("btnImprimir").hidden = true; // imprimir no funciona dentro de la página publicada
+
+    // ---- App instalable (PWA) ----
+    if (!enMarco && "serviceWorker" in navigator && (location.protocol === "https:" || location.hostname === "localhost")) {
+      navigator.serviceWorker.register("sw.js").catch(() => {});
+    }
+    const instalada = window.matchMedia("(display-mode: standalone)").matches || window.navigator.standalone === true;
+    const esIos = /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+    let promptInstalar = null;
+    window.addEventListener("beforeinstallprompt", (e) => {
+      e.preventDefault();
+      promptInstalar = e;
+      if (!enMarco) $("btnInstalar").hidden = false;
+    });
+    window.addEventListener("appinstalled", () => { $("btnInstalar").hidden = true; toast("App instalada"); });
+    if (!enMarco && !instalada && esIos) $("btnInstalar").hidden = false;
+    $("btnInstalar").addEventListener("click", async () => {
+      if (promptInstalar) {
+        promptInstalar.prompt();
+        await promptInstalar.userChoice.catch(() => {});
+        promptInstalar = null;
+        $("btnInstalar").hidden = true;
+      } else {
+        $("dlgIos").showModal();
+      }
+    });
+    $("cerrarIos").addEventListener("click", () => $("dlgIos").close());
+
+    // Botón Enviar (WhatsApp, correo…) si el teléfono permite compartir archivos
+    try {
+      const prueba = new File([new Blob(["x"])], "x.pdf", { type: "application/pdf" });
+      if (!enMarco && navigator.canShare && navigator.canShare({ files: [prueba] })) $("btnEnviar").hidden = false;
+    } catch (e) { /* sin soporte */ }
+    $("btnEnviar").addEventListener("click", enviarPdf);
 
     // Tabs móvil
     document.body.dataset.view = "form";

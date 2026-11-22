@@ -26,3 +26,6 @@ App web para crear cotizaciones y generarlas en PDF. Funciona sin internet y sin
 - `index.html`, `styles.css`, `app.js` — la app.
 - `logo.js` — logo por defecto embebido.
 - `vendor/html2pdf.bundle.min.js` — librería para crear el PDF (MIT).
+- `manifest.webmanifest`, `sw.js`, `icons/` — permiten instalarla como app y usarla sin internet.
+
+

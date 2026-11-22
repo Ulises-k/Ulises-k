@@ -4,6 +4,14 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Cotizador Mauli</title>
+  <meta name="theme-color" content="#17363a" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-title" content="Cotizador" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="icon" href="icons/icon-192.png" />
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png" />
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
@@ -13,10 +21,12 @@
       <span>Cotizador</span>
     </div>
     <div class="top-actions">
+      <button type="button" class="btn gold" id="btnInstalar" hidden>Instalar app</button>
       <button type="button" class="btn ghost" id="btnNueva">Nueva</button>
       <button type="button" class="btn ghost" id="btnAbrir">Guardadas</button>
       <button type="button" class="btn" id="btnGuardar">Guardar</button>
       <button type="button" class="btn gold" id="btnPdf">Descargar PDF</button>
+      <button type="button" class="btn" id="btnEnviar" hidden>Enviar PDF</button>
       <button type="button" class="btn ghost" id="btnImprimir" title="Imprimir o 'Guardar como PDF' desde el navegador">Imprimir</button>
     </div>
   </header>
@@ -180,6 +190,16 @@
       <button type="button" class="btn small ghost" id="confirmNo">Cancelar</button>
       <button type="button" class="btn small" id="confirmSi">Sí</button>
     </div>
+  </dialog>
+
+  <dialog id="dlgIos" class="no-print">
+    <h3>Instalar en iPhone</h3>
+    <ol>
+      <li>Abre esta página en <b>Safari</b>.</li>
+      <li>Toca el botón <b>Compartir</b> (cuadro con flecha ↑).</li>
+      <li>Elige <b>Agregar a pantalla de inicio</b> → <b>Agregar</b>.</li>
+    </ol>
+    <div class="dlg-foot"><button type="button" class="btn small" id="cerrarIos">Entendido</button></div>
   </dialog>
 
   <div id="toast" class="toast no-print"></div>
