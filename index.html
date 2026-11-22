@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Cotizador Mauli</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="topbar no-print">
+    <div class="brand">
+      <img id="topLogo" alt="" />
+      <span>Cotizador</span>
+    </div>
+    <div class="top-actions">
+      <button type="button" class="btn ghost" id="btnNueva">Nueva</button>
+      <button type="button" class="btn ghost" id="btnAbrir">Guardadas</button>
+      <button type="button" class="btn" id="btnGuardar">Guardar</button>
+      <button type="button" class="btn gold" id="btnPdf">Descargar PDF</button>
+      <button type="button" class="btn ghost" id="btnImprimir" title="Imprimir o 'Guardar como PDF' desde el navegador">Imprimir</button>
+    </div>
+  </header>
+
+  <nav class="tabs no-print">
+    <button type="button" class="tab active" data-view="form">Editar</button>
+    <button type="button" class="tab" data-view="preview">Vista previa</button>
+  </nav>
+
+  <main class="layout">
+    <!-- ================= FORMULARIO ================= -->
+    <section class="form-pane no-print" id="formPane">
+
+      <details class="card" open>
+        <summary>Cliente</summary>
+        <div class="grid2">
+          <label>N° de cotización
+            <input id="numero" placeholder="Ej. COT-0001" />
+          </label>
+          <label>Fecha
+            <input id="fecha" type="date" />
+          </label>
+          <label>Tratamiento
+            <select id="tratamiento">
+              <option>Sr.</option><option>Sra.</option><option>Srta.</option><option>Ing.</option><option>Arq.</option><option>Lic.</option><option>Dr.</option><option value="">(ninguno)</option>
+            </select>
+          </label>
+          <label>Nombre del cliente
+            <input id="cliente" placeholder="Nombre del cliente" />
+          </label>
+          <label>Dirección
+            <input id="direccion" placeholder="Dirección" />
+          </label>
+          <label>Teléfono
+            <input id="telefono" placeholder="+503 0000 0000" />
+          </label>
+        </div>
+        <label>Propuesta (texto de introducción)
+          <textarea id="propuesta" rows="2"></textarea>
+        </label>
+      </details>
+
+      <details class="card" open>
+        <summary>Descripción de materiales</summary>
+        <div id="materiales"></div>
+        <button type="button" class="btn small" id="addMaterial">+ Agregar material</button>
+      </details>
+
+      <details class="card" open>
+        <summary>Productos</summary>
+        <div id="productos"></div>
+        <button type="button" class="btn small" id="addProducto">+ Agregar producto</button>
+        <div class="total-box">Total: <strong id="totalForm">$0</strong></div>
+      </details>
+
+      <details class="card" open>
+        <summary>Entrega y pago</summary>
+        <div class="grid2">
+          <label>Tiempo estimado de entrega
+            <input id="entrega" placeholder="35 días hábiles" />
+          </label>
+          <label>Anticipo (%)
+            <input id="anticipo" type="number" min="0" max="100" step="1" />
+          </label>
+          <label>Validez de la oferta
+            <input id="validez" placeholder="10 días calendario" />
+          </label>
+          <label>Cheque a nombre de
+            <input id="cheque" />
+          </label>
+        </div>
+        <label>Condición de entrega (texto después del tiempo)
+          <textarea id="entregaNota" rows="2"></textarea>
+        </label>
+        <label>Garantía
+          <textarea id="garantia" rows="3"></textarea>
+        </label>
+      </details>
+
+      <details class="card">
+        <summary>Imagen de referencia</summary>
+        <label>Título de la página de imágenes
+          <input id="tituloImagenes" />
+        </label>
+        <label class="drop" id="dropZone">
+          <input type="file" id="imgInput" accept="image/*" multiple hidden />
+          <span>Toca o arrastra aquí para agregar imágenes</span>
+        </label>
+        <div id="imagenes" class="thumbs"></div>
+      </details>
+
+      <details class="card">
+        <summary>Observaciones / condiciones</summary>
+        <p class="hint">Una observación por línea. Escribe <b>{empresa}</b> para insertar el nombre de la empresa.</p>
+        <textarea id="observaciones" rows="10"></textarea>
+      </details>
+
+      <details class="card">
+        <summary>Datos de la empresa (se guardan para siempre)</summary>
+        <div class="logo-row">
+          <img id="logoPreview" alt="Logo" />
+          <div>
+            <label class="btn small">Cambiar logo<input type="file" id="logoInput" accept="image/*" hidden /></label>
+            <button type="button" class="btn small ghost" id="logoReset">Logo original</button>
+          </div>
+        </div>
+        <div class="grid2">
+          <label>Nombre de la empresa
+            <input id="empresa" />
+          </label>
+          <label>Responsable / firma
+            <input id="responsable" />
+          </label>
+          <label>Nombre corto (bajo firma)
+            <input id="nombreCorto" />
+          </label>
+          <label>N° de DUI
+            <input id="dui" />
+          </label>
+          <label>Contacto
+            <input id="contacto" />
+          </label>
+          <label>Gerente de proyecto
+            <input id="gerente" />
+          </label>
+        </div>
+      </details>
+
+      <p class="hint center">Todo se guarda automáticamente en este dispositivo.</p>
+    </section>
+
+    <!-- ================= VISTA PREVIA ================= -->
+    <section class="preview-pane" id="previewPane">
+      <div class="preview-scale" id="previewScale">
+        <div class="doc" id="doc"></div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Modal de cotizaciones guardadas -->
+  <dialog id="dlgGuardadas" class="no-print">
+    <div class="dlg-head">
+      <h3>Cotizaciones guardadas</h3>
+      <button type="button" class="btn small ghost" id="cerrarDlg">Cerrar</button>
+    </div>
+    <div id="listaGuardadas"></div>
+    <div class="dlg-foot">
+      <button type="button" class="btn small ghost" id="btnExportar">Exportar respaldo</button>
+      <label class="btn small ghost">Importar respaldo<input type="file" id="importInput" accept="application/json" hidden /></label>
+    </div>
+  </dialog>
+
+  <div id="toast" class="toast no-print"></div>
+
+  <script src="logo.js"></script>
+  <script src="vendor/html2pdf.bundle.min.js" defer></script>
+  <script src="app.js"></script>
+</body>
+</html>
