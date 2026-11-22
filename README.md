@@ -29,3 +29,13 @@ App web para crear cotizaciones y generarlas en PDF. Funciona sin internet y sin
 - `manifest.webmanifest`, `sw.js`, `icons/` — permiten instalarla como app y usarla sin internet.
 
 
+
+## APK para Android
+- Descarga directa: https://github.com/Ulises-k/Ulises-k/releases/download/apk/Cotizador-Mauli.apk
+- Se compila solo en GitHub Actions con cada cambio (`.github/workflows/android-apk.yml`).
+- El código nativo está en `android/`: WebView con galería, cámara, guardar en Descargas y compartir.
+- `android/debug.keystore` es una llave de prueba (contraseña pública `android`) para que las versiones nuevas se instalen encima. No sirve para Play Store.
+
+## Versión web instalable
+- https://ulises-k.github.io/Ulises-k/
+- Android (Chrome): botón **Instalar app**. iPhone (Safari): Compartir → **Agregar a pantalla de inicio**.
