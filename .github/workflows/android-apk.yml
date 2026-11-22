@@ -1,0 +1,65 @@
+name: APK Android
+
+on:
+  push:
+    branches: ["claude/quotation-generator-app-v9ze5k", "main", "master"]
+    paths:
+      - "index.html"
+      - "styles.css"
+      - "app.js"
+      - "logo.js"
+      - "vendor/**"
+      - "icons/**"
+      - "android/**"
+      - ".github/workflows/android-apk.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: apk-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.7"
+
+      - name: Copiar la app web dentro del APK
+        run: |
+          mkdir -p android/app/src/main/assets/www
+          cp -r index.html styles.css app.js logo.js manifest.webmanifest vendor icons android/app/src/main/assets/www/
+
+      - name: Compilar APK
+        env:
+          VERSION_CODE: ${{ github.run_number }}
+        run: gradle -p android assembleRelease --no-daemon --stacktrace
+
+      - name: Preparar archivo
+        run: cp android/app/build/outputs/apk/release/app-release.apk Cotizador-Mauli.apk
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Cotizador-Mauli-apk
+          path: Cotizador-Mauli.apk
+
+      - name: Publicar enlace de descarga
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release delete apk --yes --cleanup-tag || true
+          gh release create apk Cotizador-Mauli.apk \
+            --title "Cotizador Mauli para Android (versión ${{ github.run_number }})" \
+            --notes "Descarga Cotizador-Mauli.apk en tu celular Android y ábrelo para instalar." \
+            --target "$GITHUB_SHA"

@@ -166,7 +166,27 @@
     window.claude.use("downloads").then((x) => { downloadsApi = x; }).catch(() => {});
   }
 
+  // App Android (APK): el contenedor nativo expone window.AndroidApp
+  const enApk = !!(window.AndroidApp && window.AndroidApp.saveFile);
+  function blobABase64(blob) {
+    return new Promise((resolve, reject) => {
+      const r = new FileReader();
+      r.onload = () => resolve(String(r.result).split(",")[1] || "");
+      r.onerror = reject;
+      r.readAsDataURL(blob);
+    });
+  }
+  function mimeDe(filename) {
+    return /\.pdf$/i.test(filename) ? "application/pdf" : /\.json$/i.test(filename) ? "application/json" : "application/octet-stream";
+  }
+
   async function guardarArchivo(blob, filename) {
+    if (enApk) {
+      const res = window.AndroidApp.saveFile(await blobABase64(blob), filename, mimeDe(filename));
+      if (res !== "ok") throw new Error(res);
+      toast("Guardado en Descargas/Cotizaciones");
+      return false; // el aviso ya se mostró
+    }
     if (downloadsApi) {
       try {
         await downloadsApi.save({ filename, data: blob });
@@ -591,8 +611,14 @@
     btn.disabled = true; btn.textContent = "Preparando…";
     try {
       const blob = await crearPdfBlob();
+      const titulo = "Cotización " + (q.cliente || "");
+      if (enApk) {
+        const res = window.AndroidApp.shareFile(await blobABase64(blob), nombreArchivo() + ".pdf", "application/pdf", titulo);
+        if (res !== "ok") throw new Error(res);
+        return;
+      }
       const file = new File([blob], nombreArchivo() + ".pdf", { type: "application/pdf" });
-      await navigator.share({ files: [file], title: "Cotización " + (q.cliente || "") });
+      await navigator.share({ files: [file], title: titulo });
     } catch (e) {
       if (!e || e.name !== "AbortError") toast("No se pudo compartir. Usa Descargar PDF.");
     } finally {
@@ -702,10 +728,10 @@
     $("importInput").addEventListener("change", (e) => { if (e.target.files[0]) importar(e.target.files[0]); e.target.value = ""; });
     $("btnPdf").addEventListener("click", descargarPdf);
     $("btnImprimir").addEventListener("click", imprimir);
-    if (enMarco) $("btnImprimir").hidden = true; // imprimir no funciona dentro de la página publicada
+    if (enMarco || enApk) $("btnImprimir").hidden = true; // imprimir no funciona en la página publicada ni en el APK
 
     // ---- App instalable (PWA) ----
-    if (!enMarco && "serviceWorker" in navigator && (location.protocol === "https:" || location.hostname === "localhost")) {
+    if (!enMarco && !enApk && "serviceWorker" in navigator && (location.protocol === "https:" || location.hostname === "localhost")) {
       navigator.serviceWorker.register("sw.js").catch(() => {});
     }
     const instalada = window.matchMedia("(display-mode: standalone)").matches || window.navigator.standalone === true;
@@ -714,7 +740,7 @@
     window.addEventListener("beforeinstallprompt", (e) => {
       e.preventDefault();
       promptInstalar = e;
-      if (!enMarco) $("btnInstalar").hidden = false;
+      if (!enMarco && !enApk) $("btnInstalar").hidden = false;
     });
     window.addEventListener("appinstalled", () => { $("btnInstalar").hidden = true; toast("App instalada"); });
     if (!enMarco && !instalada && esIos) $("btnInstalar").hidden = false;
@@ -733,7 +759,7 @@
     // Botón Enviar (WhatsApp, correo…) si el teléfono permite compartir archivos
     try {
       const prueba = new File([new Blob(["x"])], "x.pdf", { type: "application/pdf" });
-      if (!enMarco && navigator.canShare && navigator.canShare({ files: [prueba] })) $("btnEnviar").hidden = false;
+      if (enApk || (!enMarco && navigator.canShare && navigator.canShare({ files: [prueba] }))) $("btnEnviar").hidden = false;
     } catch (e) { /* sin soporte */ }
     $("btnEnviar").addEventListener("click", enviarPdf);
 

@@ -1,0 +1,56 @@
+plugins {
+    id 'com.android.application'
+}
+
+// Firma: si existe la variable ANDROID_KEYSTORE (ruta a un .jks) se usa esa llave,
+// así las actualizaciones se instalan encima. Si no, se firma con la llave de depuración.
+def ks = System.getenv("ANDROID_KEYSTORE")
+
+android {
+    namespace 'com.mauli.cotizador'
+    compileSdk 34
+
+    defaultConfig {
+        applicationId 'com.mauli.cotizador'
+        minSdk 24
+        targetSdk 34
+        versionCode((System.getenv("VERSION_CODE") ?: "1") as Integer)
+        versionName "1." + (System.getenv("VERSION_CODE") ?: "0")
+    }
+
+    signingConfigs {
+        // Llave de prueba fija (contraseña pública "android") para que cada versión
+        // nueva se instale encima de la anterior sin borrar los datos.
+        debug {
+            storeFile rootProject.file('debug.keystore')
+            storePassword 'android'
+            keyAlias 'androiddebugkey'
+            keyPassword 'android'
+        }
+        if (ks) {
+            release {
+                storeFile file(ks)
+                storePassword System.getenv("ANDROID_KEYSTORE_PASSWORD")
+                keyAlias System.getenv("ANDROID_KEY_ALIAS") ?: "mauli"
+                keyPassword System.getenv("ANDROID_KEYSTORE_PASSWORD")
+            }
+        }
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            signingConfig ks ? signingConfigs.release : signingConfigs.debug
+        }
+    }
+
+    lint {
+        checkReleaseBuilds false
+        abortOnError false
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+}
