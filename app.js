@@ -146,6 +146,46 @@
     toast._t = setTimeout(() => t.classList.remove("show"), 2600);
   }
 
+  // ---------------------------------------------------------------- Confirmar / guardar archivos
+  // confirm() y las descargas directas no funcionan dentro de la página publicada en claude.ai,
+  // por eso se usa un diálogo propio y la capacidad "downloads" cuando existe.
+  function pedirConfirmacion(msg) {
+    return new Promise((resolve) => {
+      const d = $("dlgConfirm");
+      $("confirmMsg").textContent = msg;
+      const fin = (v) => { d.close(); resolve(v); };
+      $("confirmSi").onclick = () => fin(true);
+      $("confirmNo").onclick = () => fin(false);
+      d.showModal();
+    });
+  }
+
+  let downloadsApi = null;
+  const enMarco = window.self !== window.top;
+  if (window.claude && typeof window.claude.use === "function") {
+    window.claude.use("downloads").then((x) => { downloadsApi = x; }).catch(() => {});
+  }
+
+  async function guardarArchivo(blob, filename) {
+    if (downloadsApi) {
+      try {
+        await downloadsApi.save({ filename, data: blob });
+        return true;
+      } catch (e) {
+        if (e && e.code === "declined") return false;
+        throw e;
+      }
+    }
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+    return true;
+  }
+
   // ---------------------------------------------------------------- Imagenes
   function readImage(file, maxSide, keepPng) {
     return new Promise((resolve, reject) => {
@@ -450,9 +490,11 @@
             q = Object.assign(newQuote(), JSON.parse(JSON.stringify(c)), { id: null, fecha: today(), numero: "" });
             fillForm(); changed(); $("dlgGuardadas").close(); toast("Copia creada: cambia el cliente y guarda");
           } else if (a === "del") {
-            if (!confirm("¿Borrar la cotización de " + (c.cliente || "(sin nombre)") + "?")) return;
-            store(KEY_SAVED, savedList().filter((x) => x.id !== c.id));
-            abrirLista();
+            $("dlgGuardadas").close();
+            pedirConfirmacion("¿Borrar la cotización de " + (c.cliente || "(sin nombre)") + "?").then((ok) => {
+              if (ok) store(KEY_SAVED, savedList().filter((x) => x.id !== c.id));
+              abrirLista();
+            });
           }
         });
         box.appendChild(el);
@@ -464,11 +506,7 @@
   function exportar() {
     const data = { empresa: company, cotizaciones: savedList() };
     const blob = new Blob([JSON.stringify(data)], { type: "application/json" });
-    const a = document.createElement("a");
-    a.href = URL.createObjectURL(blob);
-    a.download = "respaldo-cotizaciones-" + today() + ".json";
-    a.click();
-    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+    guardarArchivo(blob, "respaldo-cotizaciones-" + today() + ".json").catch(() => toast("No se pudo exportar"));
   }
 
   function importar(file) {
@@ -514,7 +552,7 @@
     const sx = window.scrollX, sy = window.scrollY;
     window.scrollTo(0, 0);
     try {
-      await window.html2pdf()
+      const blob = await window.html2pdf()
         .set({
           margin: [0.5, 0.55, 0.5, 0.55],
           filename: nombreArchivo() + ".pdf",
@@ -524,8 +562,12 @@
           pagebreak: { mode: ["css", "legacy"], before: ".page + .page", avoid: ["tr", ".ref", ".obs p", ".firmas", ".datos", ".mat"] },
         })
         .from(doc)
-        .save();
-      toast("PDF descargado");
+        .outputPdf("blob");
+      doc.classList.remove("exporting");
+      scaleBox.style.zoom = prevZoom;
+      window.scrollTo(sx, sy);
+      const ok = await guardarArchivo(blob, nombreArchivo() + ".pdf");
+      if (ok) toast("PDF descargado");
     } catch (e) {
       console.error(e);
       toast("No se pudo generar. Usa Imprimir → Guardar como PDF");
@@ -580,8 +622,9 @@
 
     // Barra
     $("btnNueva").addEventListener("click", () => {
-      if (!confirm("¿Empezar una cotización nueva? Lo que no guardaste se perderá.")) return;
-      q = newQuote(); fillForm(); changed(); toast("Nueva cotización");
+      pedirConfirmacion("¿Empezar una cotización nueva? Lo que no guardaste se perderá.").then((ok) => {
+        if (ok) { q = newQuote(); fillForm(); changed(); toast("Nueva cotización"); }
+      });
     });
     $("btnGuardar").addEventListener("click", guardar);
     $("btnAbrir").addEventListener("click", abrirLista);
@@ -590,6 +633,7 @@
     $("importInput").addEventListener("change", (e) => { if (e.target.files[0]) importar(e.target.files[0]); e.target.value = ""; });
     $("btnPdf").addEventListener("click", descargarPdf);
     $("btnImprimir").addEventListener("click", imprimir);
+    if (enMarco) $("btnImprimir").hidden = true; // imprimir no funciona dentro de la página publicada
 
     // Tabs móvil
     document.body.dataset.view = "form";
