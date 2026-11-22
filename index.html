@@ -106,6 +106,9 @@
           <small>Galería o cámara · puedes elegir varias</small>
           <input type="file" id="imgInput" accept="image/*,.heic,.heif" multiple aria-label="Agregar imágenes" />
         </div>
+        <p class="or">— o si no se abre tu galería —</p>
+        <textarea id="pasteZone" class="paste" rows="2" inputmode="none"
+          placeholder="1) En tu galería: abre la foto → Copiar.&#10;2) Mantén presionado aquí → Pegar."></textarea>
         <p class="hint" id="imgEstado"></p>
         <div id="imagenes" class="thumbs"></div>
       </details>

@@ -627,6 +627,34 @@
 
     // Imagenes de referencia
     $("imgInput").addEventListener("change", (e) => { addImages([...e.target.files]); e.target.value = ""; });
+
+    // Pegar imágenes (copiadas desde la galería, WhatsApp, etc.) — no necesita permiso de galería.
+    function imagenesDelPortapapeles(e) {
+      const cd = e.clipboardData;
+      if (!cd) return [];
+      const out = [];
+      for (const it of cd.items || []) {
+        if (it.kind === "file") { const f = it.getAsFile(); if (f) out.push(f); }
+      }
+      if (!out.length && cd.files) out.push(...cd.files);
+      return out;
+    }
+    const pz = $("pasteZone");
+    pz.addEventListener("paste", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const files = imagenesDelPortapapeles(e);
+      pz.value = "";
+      if (files.length) addImages(files);
+      else toast("No hay una imagen copiada. Abre la foto, toca Copiar y vuelve a pegar aquí.");
+    });
+    pz.addEventListener("input", () => { pz.value = ""; });
+    document.addEventListener("paste", (e) => {
+      const t = e.target;
+      if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA")) return; // no interferir con texto
+      const files = imagenesDelPortapapeles(e);
+      if (files.length) { e.preventDefault(); addImages(files); }
+    });
     const dz = $("dropZone");
     dz.addEventListener("dragover", (e) => { e.preventDefault(); dz.classList.add("over"); });
     dz.addEventListener("dragleave", () => dz.classList.remove("over"));
