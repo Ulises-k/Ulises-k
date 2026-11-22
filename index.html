@@ -96,15 +96,17 @@
         </label>
       </details>
 
-      <details class="card">
+      <details class="card" open>
         <summary>Imagen de referencia</summary>
         <label>Título de la página de imágenes
           <input id="tituloImagenes" />
         </label>
-        <label class="drop" id="dropZone">
-          <input type="file" id="imgInput" accept="image/*" multiple hidden />
-          <span>Toca o arrastra aquí para agregar imágenes</span>
-        </label>
+        <div class="drop" id="dropZone">
+          <span>📷 Toca aquí para agregar fotos</span>
+          <small>Galería o cámara · puedes elegir varias</small>
+          <input type="file" id="imgInput" accept="image/*,.heic,.heif" multiple aria-label="Agregar imágenes" />
+        </div>
+        <p class="hint" id="imgEstado"></p>
         <div id="imagenes" class="thumbs"></div>
       </details>
 

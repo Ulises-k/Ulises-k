@@ -85,12 +85,12 @@
       return fallback;
     }
   }
-  function store(key, value) {
+  function store(key, value, silent) {
     try {
       localStorage.setItem(key, JSON.stringify(value));
       return true;
     } catch (e) {
-      toast("Memoria llena: borra cotizaciones viejas o usa imágenes más livianas.");
+      if (!silent) toast("Memoria llena: borra cotizaciones viejas o usa menos imágenes.");
       return false;
     }
   }
@@ -143,7 +143,7 @@
     t.textContent = msg;
     t.classList.add("show");
     clearTimeout(toast._t);
-    toast._t = setTimeout(() => t.classList.remove("show"), 2600);
+    toast._t = setTimeout(() => t.classList.remove("show"), msg.length > 60 ? 6000 : 2600);
   }
 
   // ---------------------------------------------------------------- Confirmar / guardar archivos
@@ -187,44 +187,68 @@
   }
 
   // ---------------------------------------------------------------- Imagenes
-  function readImage(file, maxSide, keepPng) {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onerror = reject;
-      reader.onload = () => {
+  // Decodifica la foto (createImageBitmap respeta la rotación del celular; si no existe, usa <img>).
+  async function decodeImage(file) {
+    if (window.createImageBitmap) {
+      try { return await createImageBitmap(file, { imageOrientation: "from-image" }); } catch (e) { /* sigue */ }
+    }
+    const url = URL.createObjectURL(file);
+    try {
+      return await new Promise((resolve, reject) => {
         const img = new Image();
-        img.onerror = reject;
-        img.onload = () => {
-          const scale = Math.min(1, maxSide / Math.max(img.width, img.height));
-          const c = document.createElement("canvas");
-          c.width = Math.round(img.width * scale);
-          c.height = Math.round(img.height * scale);
-          const ctx = c.getContext("2d");
-          if (!keepPng) {
-            ctx.fillStyle = "#fff";
-            ctx.fillRect(0, 0, c.width, c.height);
-          }
-          ctx.drawImage(img, 0, 0, c.width, c.height);
-          resolve(keepPng ? c.toDataURL("image/png") : c.toDataURL("image/jpeg", 0.82));
-        };
-        img.src = reader.result;
-      };
-      reader.readAsDataURL(file);
-    });
+        img.onload = () => resolve(img);
+        img.onerror = () => reject(new Error("decode"));
+        img.src = url;
+      });
+    } finally {
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    }
+  }
+
+  async function readImage(file, maxSide, keepPng) {
+    const img = await decodeImage(file);
+    const w = img.width, h = img.height;
+    if (!w || !h) throw new Error("vacía");
+    const scale = Math.min(1, maxSide / Math.max(w, h));
+    const c = document.createElement("canvas");
+    c.width = Math.max(1, Math.round(w * scale));
+    c.height = Math.max(1, Math.round(h * scale));
+    const ctx = c.getContext("2d");
+    if (!keepPng) {
+      ctx.fillStyle = "#fff";
+      ctx.fillRect(0, 0, c.width, c.height);
+    }
+    ctx.drawImage(img, 0, 0, c.width, c.height);
+    if (img.close) img.close();
+    return keepPng ? c.toDataURL("image/png") : c.toDataURL("image/jpeg", 0.82);
   }
 
   async function addImages(files) {
-    for (const f of files) {
-      if (!f.type.startsWith("image/")) continue;
+    if (!files.length) return;
+    const estado = $("imgEstado");
+    let ok = 0, fallas = 0;
+    for (let i = 0; i < files.length; i++) {
+      const f = files[i];
+      estado.textContent = `Procesando foto ${i + 1} de ${files.length}…`;
+      // Algunos celulares no indican el tipo del archivo: se intenta abrir igual.
       try {
         const data = await readImage(f, 1600, false);
         q.imagenes.push({ src: data, caption: "" });
+        ok++;
+        renderImages();
       } catch (e) {
-        toast("No se pudo leer la imagen " + f.name);
+        fallas++;
       }
     }
-    renderImages();
+    estado.textContent = "";
     changed();
+    if (fallas) {
+      toast(fallas === 1 && !ok
+        ? "No se pudo abrir esa foto. Si es HEIC (iPhone), conviértela a JPG o toma una captura de pantalla."
+        : `Se agregaron ${ok}. ${fallas} no se pudieron abrir.`);
+    } else {
+      toast(ok === 1 ? "Imagen agregada" : `${ok} imágenes agregadas`);
+    }
   }
 
   // ---------------------------------------------------------------- Form
@@ -427,7 +451,7 @@
   function changed() {
     renderDoc();
     clearTimeout(saveT);
-    saveT = setTimeout(() => store(KEY_DRAFT, q), 400);
+    saveT = setTimeout(() => store(KEY_DRAFT, q, true), 400);
   }
 
   function bindSimple() {
